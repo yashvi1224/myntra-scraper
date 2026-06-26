@@ -11,7 +11,7 @@ env/
 
 # Output
 output/
-
+input/
 # Python environment
 .env
 
