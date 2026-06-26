@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Myntra Product Scraper</title>
+<style>
+  :root {
+    --bg: #0f0f11;
+    --surface: #1a1a1f;
+    --border: #2a2a32;
+    --accent: #ff3f6c;       /* Myntra pink */
+    --accent2: #ff6b9e;
+    --text: #f0f0f2;
+    --muted: #7a7a8a;
+    --success: #3ecf8e;
+    --warn: #f5a623;
+    --radius: 10px;
+    --font: 'Inter', system-ui, sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font);
+    min-height: 100vh;
+    padding: 0 0 60px;
+  }
+
+  /* ── Header ── */
+  header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 18px 36px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  header .logo {
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  header .logo span { color: var(--accent); }
+  header .badge {
+    background: var(--accent);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 2px 8px;
+    border-radius: 20px;
+    letter-spacing: 0.5px;
+    margin-top: 2px;
+  }
+
+  /* ── Main layout ── */
+  .container { max-width: 1100px; margin: 40px auto; padding: 0 24px; }
+
+  /* ── Upload card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px 32px;
+    margin-bottom: 28px;
+  }
+  .card h2 { font-size: 16px; font-weight: 600; margin-bottom: 18px; color: var(--text); }
+
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: 8px;
+    padding: 36px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative;
+  }
+  .upload-zone:hover, .upload-zone.drag-over {
+    border-color: var(--accent);
+    background: rgba(255,63,108,0.05);
+  }
+  .upload-zone input[type=file] {
+    position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%;
+  }
+  .upload-zone .icon { font-size: 36px; margin-bottom: 10px; }
+  .upload-zone p { color: var(--muted); font-size: 14px; }
+  .upload-zone p strong { color: var(--text); }
+  .file-name {
+    margin-top: 10px;
+    font-size: 13px;
+    color: var(--success);
+    font-weight: 500;
+  }
+
+  .options-row {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+    margin-top: 18px;
+    flex-wrap: wrap;
+  }
+  .toggle-label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 14px;
+    color: var(--muted);
+    cursor: pointer;
+    user-select: none;
+  }
+  .toggle-label input[type=checkbox] { accent-color: var(--accent); width: 16px; height: 16px; }
+
+  .btn {
+    background: var(--accent);
+    color: #fff;
+    border: none;
+    padding: 11px 28px;
+    border-radius: 7px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s, transform 0.1s;
+    letter-spacing: 0.2px;
+  }
+  .btn:hover { background: var(--accent2); }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { background: var(--muted); cursor: not-allowed; }
+
+  /* ── Progress ── */
+  #status {
+    display: none;
+    align-items: center;
+    gap: 12px;
+    font-size: 14px;
+    color: var(--muted);
+    padding: 14px 0 4px;
+  }
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── Results ── */
+  #results { display: none; }
+
+  .results-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .results-header h2 { font-size: 18px; font-weight: 700; }
+  .count-badge {
+    background: rgba(255,63,108,0.12);
+    color: var(--accent);
+    border: 1px solid rgba(255,63,108,0.25);
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .btn-sm {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    padding: 7px 16px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Product card ── */
+  .product-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    margin-bottom: 18px;
+    overflow: hidden;
+    transition: border-color 0.2s;
+  }
+  .product-card:hover { border-color: #3a3a45; }
+
+  .product-head {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    padding: 22px 24px;
+    cursor: pointer;
+  }
+  .product-images {
+    display: flex;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .product-images img {
+    width: 72px;
+    height: 90px;
+    object-fit: cover;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+    background: #222;
+  }
+  .product-images .no-img {
+    width: 72px; height: 90px;
+    border-radius: 6px;
+    border: 1px dashed var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 22px;
+    color: var(--border);
+  }
+
+  .product-meta { flex: 1; min-width: 0; }
+  .product-id   { font-size: 11px; color: var(--muted); margin-bottom: 5px; font-family: monospace; }
+  .product-title {
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .tags-row { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .tag {
+    font-size: 11px;
+    padding: 3px 9px;
+    border-radius: 20px;
+    font-weight: 500;
+  }
+  .tag-category { background: rgba(255,63,108,0.12); color: var(--accent2); border: 1px solid rgba(255,63,108,0.2); }
+  .tag-rating   { background: rgba(62,207,142,0.12); color: var(--success);  border: 1px solid rgba(62,207,142,0.2); }
+  .tag-error    { background: rgba(245,166,35,0.12);  color: var(--warn);    border: 1px solid rgba(245,166,35,0.2); }
+  .tag-ok       { background: rgba(62,207,142,0.08); color: var(--success); border: 1px solid rgba(62,207,142,0.15); }
+
+  .expand-icon {
+    color: var(--muted);
+    font-size: 18px;
+    flex-shrink: 0;
+    margin-top: 2px;
+    transition: transform 0.2s;
+  }
+  .product-card.open .expand-icon { transform: rotate(180deg); }
+
+  /* ── Expandable body ── */
+  .product-body {
+    display: none;
+    border-top: 1px solid var(--border);
+    padding: 20px 24px;
+  }
+  .product-card.open .product-body { display: block; }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+  }
+  .desc-text {
+    font-size: 13px;
+    color: #b0b0be;
+    line-height: 1.7;
+    max-height: 120px;
+    overflow: auto;
+    margin-bottom: 20px;
+    padding: 12px;
+    background: #14141a;
+    border-radius: 6px;
+    border: 1px solid var(--border);
+  }
+
+  /* ── Ads table ── */
+  .ads-table { width: 100%; border-collapse: collapse; font-size: 13px; margin-bottom: 20px; }
+  .ads-table th {
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--muted);
+    padding: 6px 10px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+  }
+  .ads-table td { padding: 10px 10px; border-bottom: 1px solid #1e1e26; vertical-align: middle; }
+  .ads-table tr:last-child td { border-bottom: none; }
+  .ad-sponsored {
+    font-size: 10px;
+    background: rgba(245,166,35,0.15);
+    color: var(--warn);
+    border: 1px solid rgba(245,166,35,0.25);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-weight: 600;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+
+  /* ── Delivery table ── */
+  .delivery-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+  .delivery-cell {
+    background: #14141a;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .delivery-city { font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .delivery-info { font-size: 12px; color: var(--text); font-weight: 500; }
+
+  /* ── Errors ── */
+  .error-list { margin-bottom: 16px; }
+  .error-item {
+    font-size: 12px;
+    font-family: monospace;
+    color: var(--warn);
+    background: rgba(245,166,35,0.06);
+    border: 1px solid rgba(245,166,35,0.15);
+    border-radius: 5px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+  }
+
+  /* ── JSON download ── */
+  .raw-json-btn {
+    font-size: 12px;
+    color: var(--muted);
+    cursor: pointer;
+    background: none;
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: 5px;
+    margin-top: 4px;
+  }
+  .raw-json-btn:hover { color: var(--text); border-color: var(--muted); }
+
+  /* ── Empty / error states ── */
+  .empty-state {
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--muted);
+    font-size: 14px;
+  }
+  .empty-state .big { font-size: 40px; margin-bottom: 12px; }
+
+  .delivery-date { font-size: 13px; margin-top: 4px; }
+  .delivery-eta  { margin-top: 2px; }
+
+  @media (max-width: 600px) {
+    .container { padding: 0 14px; }
+    .card { padding: 18px; }
+    .product-head { flex-wrap: wrap; }
+    .product-images img { width: 56px; height: 70px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">Myntra<span>Scraper</span></div>
+  <div class="badge">TOOL</div>
+</header>
+
+<div class="container">
+
+  <!-- Upload card -->
+  <div class="card">
+    <h2>Upload Product CSV</h2>
+
+    <div class="upload-zone" id="dropzone">
+      <input type="file" id="csv-input" accept=".csv" />
+      <div class="icon">📄</div>
+      <p><strong>Drop your CSV here</strong> or click to browse</p>
+      <p style="margin-top:6px;font-size:12px;">Must have a <code style="color:var(--accent)">product_id</code> column</p>
+      <div class="file-name" id="file-name"></div>
+    </div>
+
+    <div class="options-row">
+      <label class="toggle-label">
+        <input type="checkbox" id="delivery-toggle" />
+        Enable delivery check (bonus — slower)
+      </label>
+      <button class="btn" id="scrape-btn" disabled onclick="startScrape()">
+        🔍 Scrape Products
+      </button>
+    </div>
+
+    <div id="status">
+      <div class="spinner"></div>
+      <span id="status-text">Scraping… this may take a few minutes</span>
+    </div>
+  </div>
+
+  <!-- Results section -->
+  <div id="results">
+    <div class="results-header">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <h2>Results</h2>
+        <span class="count-badge" id="count-badge">0 products</span>
+      </div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn-sm" onclick="downloadJSON()">⬇ Download JSON</button>
+        <button class="btn-sm" onclick="clearResults()">✕ Clear</button>
+      </div>
+    </div>
+    <div id="cards-container"></div>
+  </div>
+
+</div>
+
+<script>
+let allResults = [];
+
+// ── Drag & Drop ──────────────────────────────────────────────────────────────
+const dropzone = document.getElementById('dropzone');
+const csvInput = document.getElementById('csv-input');
+const scrapeBtn = document.getElementById('scrape-btn');
+const fileName = document.getElementById('file-name');
+
+csvInput.addEventListener('change', () => {
+  if (csvInput.files[0]) {
+    fileName.textContent = '✓ ' + csvInput.files[0].name;
+    scrapeBtn.disabled = false;
+  }
+});
+
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('drag-over'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('drag-over'));
+dropzone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropzone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f && f.name.endsWith('.csv')) {
+    const dt = new DataTransfer();
+    dt.items.add(f);
+    csvInput.files = dt.files;
+    fileName.textContent = '✓ ' + f.name;
+    scrapeBtn.disabled = false;
+  }
+});
+
+// ── Scrape ───────────────────────────────────────────────────────────────────
+async function startScrape() {
+  const file = csvInput.files[0];
+  if (!file) return;
+
+  const delivery = document.getElementById('delivery-toggle').checked;
+
+  scrapeBtn.disabled = true;
+  document.getElementById('status').style.display = 'flex';
+  document.getElementById('status-text').textContent = 'Scraping… this may take several minutes';
+  document.getElementById('results').style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', file);
+  fd.append('delivery', delivery ? 'true' : 'false');
+
+  try {
+    const res = await fetch('/scrape', { method: 'POST', body: fd });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.error || 'Server error');
+    }
+    allResults = await res.json();
+    renderResults(allResults);
+  } catch (e) {
+    document.getElementById('status-text').textContent = '❌ Error: ' + e.message;
+    scrapeBtn.disabled = false;
+    return;
+  }
+
+  document.getElementById('status').style.display = 'none';
+  scrapeBtn.disabled = false;
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+function renderResults(data) {
+  const container = document.getElementById('cards-container');
+  const countBadge = document.getElementById('count-badge');
+  countBadge.textContent = data.length + ' product' + (data.length !== 1 ? 's' : '');
+  document.getElementById('results').style.display = 'block';
+
+  if (!data.length) {
+    container.innerHTML = '<div class="empty-state"><div class="big">🤷</div>No results returned.</div>';
+    return;
+  }
+
+  container.innerHTML = data.map((p, i) => buildCard(p, i)).join('');
+}
+
+function buildCard(p, i) {
+  const hasErrors = p.errors && p.errors.length > 0;
+
+  // Images
+  let imgHtml = '';
+  if (p.images && p.images.length) {
+    imgHtml = p.images.slice(0, 2).map(src =>
+      `<img src="${esc(src)}" alt="product" onerror="this.style.display='none'" />`
+    ).join('');
+  } else {
+    imgHtml = `<div class="no-img">🖼</div>`;
+  }
+
+  // Tags
+  let tags = '';
+  if (p.category) tags += `<span class="tag tag-category">📂 ${esc(p.category)}</span>`;
+  if (p.rating)   tags += `<span class="tag tag-rating">⭐ ${esc(p.rating)}</span>`;
+  if (p.total_ratings) tags += `<span class="tag tag-rating">${esc(p.total_ratings)} ratings</span>`;
+  tags += hasErrors
+    ? `<span class="tag tag-error">⚠ ${p.errors.length} issue${p.errors.length > 1 ? 's' : ''}</span>`
+    : `<span class="tag tag-ok">✓ OK</span>`;
+
+  // Ads table
+  let adsHtml = '';
+  if (p.category_ads && p.category_ads.length) {
+    adsHtml = `
+      <div class="section-label">Sponsored Results — ${esc(p.category || 'Category')}</div>
+      <table class="ads-table">
+        <thead><tr>
+          <th>#</th><th>Product</th><th>Price</th><th>Rating</th>
+        </tr></thead>
+        <tbody>
+          ${p.category_ads.map((ad, j) => `
+            <tr>
+              <td style="color:var(--muted)">${j+1}</td>
+              <td>${esc(ad.title || '—')}<span class="ad-sponsored">AD</span></td>
+              <td style="color:var(--success)">${esc(ad.price || '—')}</td>
+              <td>${esc(ad.rating || '—')}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>`;
+  } else {
+    adsHtml = `<div class="section-label">Sponsored Results</div>
+               <p style="font-size:13px;color:var(--muted);margin-bottom:20px">None found</p>`;
+  }
+
+  // Delivery
+  // p.delivery is a list of objects:
+  // [{ city, pincode, deliveryInfo, eta, deliveryDate, status }, ...]
+  let deliveryHtml = '';
+  if (p.delivery && Array.isArray(p.delivery) && p.delivery.length) {
+    const rows = p.delivery.map(d => {
+      const statusColor = d.status === 'ok'
+        ? 'var(--success)'
+        : d.status === 'not_found'
+          ? 'var(--muted)'
+          : 'var(--warn)';
+      const dateText  = d.deliveryDate  ? esc(d.deliveryDate)  : '—';
+      const etaText   = d.eta           ? esc(d.eta)           : '—';
+      const infoText  = d.deliveryInfo  ? esc(d.deliveryInfo)  : (d.error ? esc(d.error) : 'No info');
+      return `
+        <div class="delivery-cell">
+          <div class="delivery-city">${esc(d.city)} <span style="color:var(--muted);font-size:11px">${esc(d.pincode)}</span></div>
+          <div class="delivery-date" style="color:${statusColor};font-weight:600">${dateText}</div>
+          <div class="delivery-eta" style="color:var(--muted);font-size:12px">ETA: ${etaText}</div>
+          <div class="delivery-info" style="font-size:12px;color:var(--muted);margin-top:2px">${infoText}</div>
+        </div>`;
+    }).join('');
+    deliveryHtml = `
+      <div class="section-label">Delivery Estimates</div>
+      <div class="delivery-grid">${rows}</div>`;
+  }
+
+  // Errors
+  let errHtml = '';
+  if (hasErrors) {
+    errHtml = `
+      <div class="section-label" style="color:var(--warn)">Issues</div>
+      <div class="error-list">
+        ${p.errors.map(e => `<div class="error-item">⚠ ${esc(e)}</div>`).join('')}
+      </div>`;
+  }
+
+  return `
+    <div class="product-card" id="card-${i}">
+      <div class="product-head" onclick="toggleCard(${i})">
+        <div class="product-images">${imgHtml}</div>
+        <div class="product-meta">
+          <div class="product-id">ID: ${esc(p.product_id)}</div>
+          <div class="product-title">${esc(p.title || 'Title unavailable')}</div>
+          <div class="tags-row">${tags}</div>
+        </div>
+        <div class="expand-icon">▾</div>
+      </div>
+      <div class="product-body">
+        ${p.description ? `
+          <div class="section-label">Description</div>
+          <div class="desc-text">${esc(p.description)}</div>` : ''}
+        ${adsHtml}
+        ${deliveryHtml}
+        ${errHtml}
+        <button class="raw-json-btn" onclick="downloadSingle(${i})">⬇ Raw JSON for this product</button>
+      </div>
+    </div>`;
+}
+
+function toggleCard(i) {
+  document.getElementById('card-' + i).classList.toggle('open');
+}
+
+// ── Utilities ────────────────────────────────────────────────────────────────
+function esc(str) {
+  if (!str) return '';
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+function downloadJSON() {
+  const blob = new Blob([JSON.stringify(allResults, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = 'myntra_results.json'; a.click();
+}
+
+function downloadSingle(i) {
+  const blob = new Blob([JSON.stringify(allResults[i], null, 2)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+  a.download = `product_${allResults[i].product_id}.json`; a.click();
+}
+
+function clearResults() {
+  allResults = [];
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('cards-container').innerHTML = '';
+}
+</script>
+</body>
+</html>
